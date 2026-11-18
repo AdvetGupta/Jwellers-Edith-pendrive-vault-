@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Database files (runtime user data — NEVER commit)
+*.db
+*.sqlite
+*.sqlite3
+
+# Runtime logs
+logs/
+*.log
+
+# Secrets and config
+.env
+.env.local
+.env.production
+config/secrets.json
+
+# OS junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# Build output
+dist/
+release/
+out/
+
+# Scratch / temp
+scratch/
+tests/simulated_usb_env/
+

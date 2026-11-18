@@ -1,0 +1,4 @@
+﻿Customer Name,Transaction Date,Type,Debit (Owed),Credit (Paid),Balance,Method,Notes
+"Test Customer","2026-07-01","payment","0","10300","0","",""
+"Test Customer","2026-07-04","bill","20000","0","20000","",""
+"Test Customer","2026-07-04","payment","0","5000","15000","",""

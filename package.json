@@ -1,0 +1,31 @@
+{
+  "name": "jwellers-edith",
+  "version": "2.0.0",
+  "description": "Jwellers Edith - Zero-Trace Offline Hardware Vault Architecture",
+  "main": "backend/main.js",
+  "author": "AD's Creation",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "db:init": "node database/init.js",
+    "db:seed": "node database/seeds/seed_demo.js",
+    "db:reset": "node scripts/reset_db.js",
+    "start": "electron .",
+    "start:dev": "node backend/app.js",
+    "test": "node tests/vault.test.js",
+    "test:vault": "node tests/vault.test.js",
+    "test:girvi": "node tests/girvi.test.js",
+    "test:db": "node tests/database.test.js",
+    "test:backend": "node tests/backend.test.js",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win"
+  },
+  "dependencies": {
+    "sql.js": "^1.11.0"
+  },
+  "devDependencies": {
+    "electron": "^43.1.1",
+    "electron-builder": "^25.1.8"
+  }
+}

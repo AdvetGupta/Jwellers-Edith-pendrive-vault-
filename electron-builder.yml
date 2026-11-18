@@ -1,0 +1,44 @@
+appId: com.adscreation.jwellers-edith
+productName: Jwellers Edith
+copyright: Copyright © 2026 AD's Creation
+
+directories:
+  output: dist
+  buildResources: assets
+
+files:
+  - backend/**/*
+  - renderer/**/*
+  - database/**/*
+  - errors/**/*
+  - logging/**/*
+  - repositories/**/*
+  - security/**/*
+  - services/**/*
+  - utils/**/*
+  - validation/**/*
+  - config/**/*
+  - package.json
+
+extraResources:
+  - from: dist/Jwellers_Edith.apk
+    to: Jwellers_Edith.apk
+
+win:
+
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: assets/icon.png
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Jwellers Edith
+  uninstallDisplayName: Jwellers Edith
+  deleteAppDataOnUninstall: false
+  perMachine: false
+  include: scripts/installer.nsh
