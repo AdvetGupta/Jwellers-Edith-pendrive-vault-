@@ -31,8 +31,22 @@ class Statement {
       stmt.step();
       const changes = this.db._raw.getRowsModified();
       stmt.free();
-      // Persist to disk after every write so data is not lost on crash
-      this.db._scheduleSave();
+
+      // Immediately cache last_insert_rowid before any export serialization resets it
+      try {
+        const idStmt = this.db._raw.prepare('SELECT last_insert_rowid() as id');
+        if (idStmt.step()) {
+          this.db._cachedLastInsertRowid = idStmt.getAsObject().id;
+        }
+        idStmt.free();
+      } catch (_) {}
+
+      // Synchronous immediate disk flush for critical business tables when not inside open transaction
+      if (!this.db.inTransaction && /^\s*(INSERT|UPDATE|DELETE)\s+(INTO\s+)?(bills|customers|girvi_loans|khata_transactions|payments|users)\b/i.test(this.sqlText)) {
+        this.db.flushSync();
+      } else if (!this.db.inTransaction) {
+        this.db._scheduleSave();
+      }
       return { changes };
     } catch (err) {
       try { stmt.free(); } catch (_) {}
@@ -114,10 +128,16 @@ class Database {
   }
 
   exec(sql) {
-    // Use _raw.exec() which supports multiple statements separated by semicolons
-    // (sql.js run() only executes the first statement)
+    if (/^\s*(BEGIN|SAVEPOINT)\b/i.test(sql)) {
+      this.inTransaction = true;
+    }
     this._raw.exec(sql);
-    this._scheduleSave();
+    if (/^\s*(COMMIT|RELEASE|ROLLBACK)\b/i.test(sql)) {
+      this.inTransaction = false;
+      this.flushSync();
+    } else if (!this.inTransaction) {
+      this._scheduleSave();
+    }
   }
 
   pragma(key, value) {
@@ -150,14 +170,25 @@ class Database {
   }
 
   async _saveToFileAsync() {
-    if (this.dbPath && this._raw) {
+    if (this.dbPath && this._raw && this.dbPath !== ':memory:') {
       try {
-        const data = this._raw.export();
         const dir = path.dirname(this.dbPath);
         if (!fs.existsSync(dir)) {
           await fs.promises.mkdir(dir, { recursive: true });
         }
-        await fs.promises.writeFile(this.dbPath, Buffer.from(data));
+        // Atomic Rolling Backup before async save
+        if (fs.existsSync(this.dbPath)) {
+          const bakPath = `${this.dbPath}.bak`;
+          try {
+            await fs.promises.copyFile(this.dbPath, bakPath);
+          } catch (bakErr) {
+            console.warn('[sqlite_shim] Async rolling backup notice:', bakErr.message);
+          }
+        }
+        const data = this._raw.export();
+        const tempPath = `${this.dbPath}.tmp_${Date.now()}`;
+        await fs.promises.writeFile(tempPath, Buffer.from(data));
+        await fs.promises.rename(tempPath, this.dbPath);
       } catch (err) {
         console.error('[sqlite_shim] Async background save error:', err.message);
       }
@@ -188,15 +219,32 @@ class Database {
     }
   }
 
+  flushSync() {
+    if (this.inTransaction) return;
+    this._saveScheduled = false;
+    this._saveToFile();
+  }
+
   _saveToFile() {
-    if (this.dbPath && this._raw) {
+    if (this.dbPath && this._raw && this.dbPath !== ':memory:') {
       try {
-        const data = this._raw.export();
         const dir = path.dirname(this.dbPath);
         if (!fs.existsSync(dir)) {
           fs.mkdirSync(dir, { recursive: true });
         }
-        fs.writeFileSync(this.dbPath, Buffer.from(data));
+        // Atomic Rolling Backup: Keep previous copy as .bak before overwriting
+        if (fs.existsSync(this.dbPath)) {
+          const bakPath = `${this.dbPath}.bak`;
+          try {
+            fs.copyFileSync(this.dbPath, bakPath);
+          } catch (bakErr) {
+            console.warn('[sqlite_shim] Rolling backup notice:', bakErr.message);
+          }
+        }
+        const data = this._raw.export();
+        const tempPath = `${this.dbPath}.tmp_${Date.now()}`;
+        fs.writeFileSync(tempPath, Buffer.from(data));
+        fs.renameSync(tempPath, this.dbPath);
       } catch (err) {
         console.error('[sqlite_shim] Failed to save database to disk:', err.message);
       }
@@ -204,14 +252,21 @@ class Database {
   }
 
   get lastInsertRowid() {
-    if (!this._raw) return 0;
-    const stmt = this._raw.prepare('SELECT last_insert_rowid() as id');
-    let id = 0;
-    if (stmt.step()) {
-      id = stmt.getAsObject().id;
+    if (this._cachedLastInsertRowid !== undefined && this._cachedLastInsertRowid !== 0) {
+      return this._cachedLastInsertRowid;
     }
-    stmt.free();
-    return id;
+    if (!this._raw) return 0;
+    try {
+      const stmt = this._raw.prepare('SELECT last_insert_rowid() as id');
+      let id = 0;
+      if (stmt.step()) {
+        id = stmt.getAsObject().id;
+      }
+      stmt.free();
+      return id;
+    } catch (_) {
+      return 0;
+    }
   }
 }
 

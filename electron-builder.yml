@@ -20,12 +20,13 @@ files:
   - config/**/*
   - package.json
 
-extraResources:
-  - from: dist/Jwellers_Edith.apk
-    to: Jwellers_Edith.apk
+publish:
+  provider: github
+  owner: AdvetGupta
+  repo: Jwellers-Edith-pendrive-vault-
+  releaseType: release
 
 win:
-
   target:
     - target: nsis
       arch:
@@ -41,4 +42,3 @@ nsis:
   uninstallDisplayName: Jwellers Edith
   deleteAppDataOnUninstall: false
   perMachine: false
-  include: scripts/installer.nsh

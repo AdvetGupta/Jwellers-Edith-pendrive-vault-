@@ -150,22 +150,37 @@ async function shutdown() {
 if (process.versions && process.versions.electron) {
   const { app, globalShortcut } = require('electron');
 
-  app.whenReady().then(() => {
-    start();
-  });
+  // Single-Instance Lock: Prevent multiple windows/instances from overwriting DB with stale in-memory state
+  const gotSingleInstanceLock = app.requestSingleInstanceLock();
+  if (!gotSingleInstanceLock) {
+    console.warn('[Process] Another instance is already running. Exiting immediately to prevent database overwrite.');
+    app.quit();
+  } else {
+    app.on('second-instance', () => {
+      // Focus the existing window if a second instance is launched
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore();
+        mainWindow.focus();
+      }
+    });
 
-  app.on('will-quit', () => {
-    if (globalShortcut) globalShortcut.unregisterAll();
-    usbVaultService.stopWatcher();
-    usbVaultService.unmountVault({ emergency: false, reason: 'Application quit' });
-    cleanupZeroTraceOnExit();
-  });
+    app.whenReady().then(() => {
+      start();
+    });
 
-  app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-      app.quit();
-    }
-  });
+    app.on('will-quit', () => {
+      if (globalShortcut) globalShortcut.unregisterAll();
+      usbVaultService.stopWatcher();
+      usbVaultService.unmountVault({ emergency: false, reason: 'Application quit' });
+      cleanupZeroTraceOnExit();
+    });
+
+    app.on('window-all-closed', () => {
+      if (process.platform !== 'darwin') {
+        app.quit();
+      }
+    });
+  }
 }
 
 module.exports = { start, shutdown };

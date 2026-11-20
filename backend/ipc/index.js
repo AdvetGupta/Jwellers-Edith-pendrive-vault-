@@ -1,3 +1,4 @@
+const { registerUpdaterIpc } = require('./updater.ipc');
 const { AppError, ERROR_CODES } = require('../../errors/app-error');
 const logger = require('../../logging/logger');
 const { getCurrentUserId } = require('../../security/session');
@@ -68,6 +69,7 @@ function registerAllIpcHandlers() {
 
   // Register dedicated Hardware Vault IPC handlers
   registerVaultIpc();
+  registerUpdaterIpc();
 
   const allHandlers = [
     ...authIpc,

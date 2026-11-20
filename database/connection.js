@@ -79,12 +79,21 @@ function isOpen() {
   return db !== null;
 }
 
+function flushSync() {
+  if (db && typeof db.flushSync === 'function') {
+    db.flushSync();
+  } else if (db && typeof db._saveToFile === 'function') {
+    db._saveToFile();
+  }
+}
+
 module.exports = {
   open,
   openDecoy,
   getDb,
   getPath,
   isDecoy,
+  flushSync,
   close,
   isOpen
 };
